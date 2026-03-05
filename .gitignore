@@ -100,3 +100,4 @@ InitTestScene*.unity*
 
 # Photon App ID
 Assets/Photon/Fusion/Resources/PhotonAppSettings.asset
+Assets/Photon/Fusion/Resources/PhotonAppSettings.asset.meta
