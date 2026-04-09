@@ -15,6 +15,8 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
     [SerializeField] private NetworkPrefabRef playerPrefab;                 //네트워크에 등록된 프리팹
     [SerializeField] private Transform[] spawnPoints;                       //스폰 위치 설정
 
+    private Dictionary<PlayerRef, NetworkObject> playerObjects = new();
+
     private NetworkRunner runner;
 
     public struct NetworkInputData : INetworkInput
@@ -26,6 +28,7 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
     public enum InputButton
     {
         Fire = 0,
+        Jump = 1
     }
 
     public void StartHost() => _ = StartGame(GameMode.Host);
@@ -71,17 +74,19 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
     {
         Debug.Log($"플레이어 입장 : {player}");
 
-        if (runner.IsServer == false)
+        if (!runner.IsServer)
             return;
 
         Vector3 spawnPos = GetSpawnPosition(player);
 
-        runner.Spawn(
+        var obj = runner.Spawn(
             playerPrefab,
             spawnPos,
             Quaternion.identity,
             player
         );
+
+        playerObjects[player] = obj;
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
@@ -95,8 +100,9 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
             Input.GetAxisRaw("Vertical")
         );
 
-        var buttons =  new NetworkButtons();                                //네트워크 버튼 생성
-        buttons.Set((int)InputButton.Fire , Input.GetMouseButton(0));   //마우스 버튼 
+        var buttons =  new NetworkButtons();                                            //네트워크 버튼 생성
+        buttons.Set((int)InputButton.Fire , Input.GetMouseButton(0));                   //마우스 버튼 
+        buttons.Set((int)InputButton.Jump, Input.GetKey(KeyCode.Space));                //점프버튼
 
         data.buttons = buttons;
 
