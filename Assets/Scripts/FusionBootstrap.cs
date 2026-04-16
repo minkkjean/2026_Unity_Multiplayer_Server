@@ -15,6 +15,12 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
     [SerializeField] private NetworkPrefabRef playerPrefab;                 //네트워크에 등록된 프리팹
     [SerializeField] private Transform[] spawnPoints;                       //스폰 위치 설정
 
+    [Header("Pickable Box")]
+    [SerializeField] private NetworkPrefabRef pickableBoxPrefab;
+    [SerializeField] private Transform[] boxSpawnPoints;
+
+    private bool boxesSpawned =false;
+
     private Dictionary<PlayerRef, NetworkObject> playerObjects = new();
 
     private NetworkRunner runner;
@@ -22,13 +28,15 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
     public struct NetworkInputData : INetworkInput
     {
         public Vector2 move;
+        public float cameraYaw;
         public NetworkButtons buttons;
     }
 
     public enum InputButton
     {
         Fire = 0,
-        Jump = 1
+        Jump = 1,
+        Pickup = 2
     }
 
     public void StartHost() => _ = StartGame(GameMode.Host);
@@ -62,9 +70,39 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
         });
 
         if (result.Ok)
+        {
             Debug.Log($"[Fusion] StartGame OK - {mode} / {sessionName}");
+
+            if (runner.IsServer)
+            {
+                SpawnBoxes();
+            }
+        }
         else
+        {
             Debug.LogError($"[Fusion] StartGame FAILED - {result.ShutdownReason}");
+        }
+           
+    }
+
+    public void SpawnBoxes()
+    {
+        if (!runner.IsPlayer) return;
+
+        if (boxesSpawned) return;
+
+        boxesSpawned = true;
+
+        if (boxSpawnPoints == null || boxSpawnPoints.Length == 0) return;
+
+        foreach (var point in boxSpawnPoints)
+        {
+            if (point == null) continue;
+
+            runner.Spawn(pickableBoxPrefab, point.position, point.rotation, null);
+        }
+
+        Debug.Log($"상자 {boxSpawnPoints.Length} 개 생성 완료");
     }
 
 
@@ -87,6 +125,7 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
         );
 
         playerObjects[player] = obj;
+        runner.SetPlayerObject(player, obj);
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
@@ -100,9 +139,12 @@ public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
             Input.GetAxisRaw("Vertical")
         );
 
+        data.cameraYaw = SimplePlayer.LocalCameraYaw;
+
         var buttons =  new NetworkButtons();                                            //네트워크 버튼 생성
         buttons.Set((int)InputButton.Fire , Input.GetMouseButton(0));                   //마우스 버튼 
         buttons.Set((int)InputButton.Jump, Input.GetKey(KeyCode.Space));                //점프버튼
+        buttons.Set((int)InputButton.Pickup, Input.GetKey(KeyCode.E));                  //물건 상호작용 버튼
 
         data.buttons = buttons;
 
